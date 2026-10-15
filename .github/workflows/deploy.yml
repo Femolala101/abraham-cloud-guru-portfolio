@@ -1,0 +1,41 @@
+
+name: Deploy Portfolio Website
+
+on:
+  push:
+    branches:
+      - main
+
+# Allow GitHub to request an OIDC token.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy to AWS
+    runs-on: ubuntu-latest
+
+    steps:
+      # Download the repository code.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Authenticate to AWS using OIDC, not access keys.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::838839453927:role/GitHubPortfolioDeployRole
+          aws-region: eu-west-2
+
+      # Upload the website to the private S3 bucket.
+      - name: Deploy website to S3
+        run: |
+          aws s3 sync website/ s3://abrahamcloudguru-com-dev-portfolio --delete
+
+      # Refresh CloudFront so visitors receive the latest website.
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id E2ESZ60AJ78B82 \
+            --paths "/*"
